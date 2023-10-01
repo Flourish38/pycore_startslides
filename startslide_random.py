@@ -18,28 +18,25 @@ def randomize_frame():
 
 @event.on_frameadvance
 def onFrameAdvance():
-    global currentFrame, slot_zero_valid
+    global currentFrame, start_state
     stage = classes.RaceInfo.stage()
 
     if stage == 1:
-        if not slot_zero_valid and core.get_frame_of_input() == 0:
-            slot_zero_valid = True
-            # This crashes dolphin
-            savestate.save_to_slot(0)
+        if start_state == None and core.get_frame_of_input() == 0:
+            start_state = savestate.save_to_bytes()
 
         randomize_frame()
         TTK_Lib.writePlayerInputs(currentFrame)
 
-    if stage == 2 and slot_zero_valid:
+    if stage == 2 and start_state != None:
         race_completion = classes.RaceInfoPlayer.race_completion()
         gui.add_osd_message(f"Final Race Completion: {race_completion}")
-        # This also crashed dolphin when I ran it, but there was nothing saved to the slot.
-        savestate.load_from_slot(0)
+        savestate.load_from_bytes(start_state)
 
 
 def main() -> None:
-    global currentFrame, slot_zero_valid
-    slot_zero_valid = False
+    global currentFrame, start_state
+    start_state = None
     currentFrame = Frame(["", "", "", "", "", ""])
 
     currentFrame.accel = False
