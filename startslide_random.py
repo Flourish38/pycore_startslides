@@ -9,11 +9,11 @@ from copy import copy
 from random import getrandbits, randint
 
 
-def randomize_current_frame():
+def randomize_current_frame(frame):
     global current_frame
 
-    current_frame.accel = not getrandbits(1)
-    current_frame.dpad_up = not getrandbits(1)
+    current_frame.accel = not getrandbits(1) if frame < 164 else True
+    current_frame.dpad_up = not getrandbits(4)
     current_frame.stick_x = randint(-7, 7)
     current_frame.stick_y = randint(-7, 7)
 
@@ -24,10 +24,11 @@ def onFrameAdvance():
     stage = classes.RaceInfo.stage()
 
     if stage == 1:
-        if start_state == None and core.get_frame_of_input() == 0:
+        frame = core.get_frame_of_input()
+        if start_state == None and frame == 0:
             start_state = savestate.save_to_bytes()
 
-        randomize_current_frame()
+        randomize_current_frame(frame)
         TTK_Lib.writePlayerInputs(current_frame)
         frame_sequence.frames.append(copy(current_frame))
 
