@@ -23,10 +23,13 @@ def onFrameAdvance():
     global start_state, best_completion, current_frame, frame_sequence
     stage = classes.RaceInfo.stage()
 
+    # intro_timer == 171 is the frame before the start of input
+    # intro_timer == 172 for the whole race
+    if start_state == None and classes.RaceInfo.intro_timer() == 171:
+        start_state = savestate.save_to_bytes()
+
     if stage == 1:
         frame = core.get_frame_of_input()
-        if start_state == None and frame == 0:
-            start_state = savestate.save_to_bytes()
 
         randomize_current_frame(frame)
         TTK_Lib.writePlayerInputs(current_frame)
