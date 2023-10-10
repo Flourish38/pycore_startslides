@@ -39,7 +39,7 @@ def main() -> None:
             utils.get_script_dir(),
             "MKW_Inputs",
             "Startslides",
-            "flame_right.csv",
+            "best_random_inputs.csv",
         )
     )
 

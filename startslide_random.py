@@ -14,8 +14,9 @@ def randomize_current_frame(frame):
 
     current_frame.accel = not getrandbits(1) if frame < 164 else True
     current_frame.dpad_up = not getrandbits(4)
-    current_frame.stick_x = randint(-7, 7)
-    current_frame.stick_y = randint(-7, 7)
+    if frame == 0 or not getrandbits(3):
+        current_frame.stick_x = randint(-7, 7)
+        current_frame.stick_y = randint(-7, 7)
 
 
 @event.on_frameadvance
