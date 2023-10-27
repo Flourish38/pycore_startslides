@@ -27,33 +27,37 @@ def frames_down_to_full_boost(start_charge):
     return output + frames_up_to_full_boost(start_charge)
 
 
-def randomize_current_frame(frame):
-    global current_frame, holding_a
-
+def randomize_frame(frame, frame_of_input, holding_a):
     a_set = False
-    if holding_a or frame == 239:
-        current_frame.accel = True
+    if holding_a or frame_of_input == 239:
+        frame.accel = True
         a_set = True
     # 136 is the first frame we might need to start holding A, since it takes 103 frames to get to full start boost from 0
-    elif frame >= 136:
+    elif frame_of_input >= 136:
         charge = classes.KartState.start_boost_charge()
         if charge < 0.94:
             # Check to see if, if we DON'T push A, can we still get full start boost?
-            if frames_up_to_full_boost(0.96 * charge) + frame > 238:
-                current_frame.accel = True
+            if frames_up_to_full_boost(0.96 * charge) + frame_of_input > 238:
+                frame.accel = True
                 holding_a = True
                 a_set = True
-        elif charge > 0.95 and frame >= 231:
+        elif charge > 0.95 and frame_of_input >= 231:
             # Check to see if, if we DO push A, can we still not burn out?
-            if frames_down_to_full_boost(min(1, 0.982 * charge + 0.02)) + frame > 238:
-                current_frame.accel = False
+            if (
+                frames_down_to_full_boost(min(1, 0.982 * charge + 0.02))
+                + frame_of_input
+                > 238
+            ):
+                frame.accel = False
                 a_set = True
     if not a_set:
-        current_frame.accel = not getrandbits(1)
-    current_frame.dpad_up = not getrandbits(4)
-    if frame == 0 or not getrandbits(3):
-        current_frame.stick_x = randint(-7, 7)
-        current_frame.stick_y = randint(-7, 7)
+        frame.accel = not getrandbits(1)
+    frame.dpad_up = not getrandbits(4)
+    if frame_of_input == 0 or not getrandbits(3):
+        frame.stick_x = randint(-7, 7)
+        frame.stick_y = randint(-7, 7)
+
+    return holding_a
 
 
 @event.on_frameadvance
@@ -63,13 +67,13 @@ def onFrameAdvance():
 
     # intro_timer == 171 is the frame before the start of input
     # intro_timer == 172 for the whole race
-    if start_state == None and classes.RaceInfo.intro_timer() == 171:
+    if classes.RaceInfo.intro_timer() == 171:
         start_state = savestate.save_to_bytes()
 
     if stage == 1:
         frame = core.get_frame_of_input()
 
-        randomize_current_frame(frame)
+        holding_a = randomize_frame(current_frame, frame, holding_a)
         TTK_Lib.writePlayerInputs(current_frame)
         frame_sequence.frames.append(copy(current_frame))
 
