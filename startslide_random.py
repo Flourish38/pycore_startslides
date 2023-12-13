@@ -32,7 +32,21 @@ def onFrameAdvance():
     if stage == 0:
         start_time = time()
         savestate.load_from_bytes(start_state)
+
+        # TODO actually make this work
+        # Will work well in combination with Gaberboo's multi-ghost code:
+        # https://discord.com/channels/1087909304700522549/1087909305400950816/1167688695000858705
         
+        # This code currently does nothing.
+        num_players = 1
+        player_count = classes.RaceDataScenario.player_count()
+        if player_count > 1:
+            player_vehicle = classes.KartParam.vehicle()
+            for idx in range(1, player_count):
+                if classes.KartParam.vehicle(idx) == player_vehicle:
+                    num_players += 1
+                else:
+                    break 
 
     if stage == 1:
         frame = core.get_frame_of_input()
