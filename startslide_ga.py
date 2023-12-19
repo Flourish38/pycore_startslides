@@ -12,35 +12,21 @@ from pycore_startslides.my_utils.start_boost import *
 
 class Slide:
     def __init__(self):
-        self.accel = []
-        self.dpad_up = []
-        self.stick_x = []
+        self.keyframes = []
+        self.is_wheelie = []
         self.stick_x_values = []
-        self.stick_y = []
-        self.stick_y_values = []
 
     def apply(self, frame, frame_of_input):
-        # If the frame is in the list, then wheelie on that frame.
-        frame.dpad_up = frame_of_input in self.dpad_up
-        
-        frame.accel = False
-        for f in self.accel:
+        frame.dpad_up = False
+        frame.stick_x = 0
+        for i in range(len(self.keyframes)):
+            f = self.keyframes[i]
             if f > frame_of_input:
                 break
-            # Every frame in the list *toggles* the A button. For now. We'll see
-            frame.accel = not frame.accel
-        
-        frame.stick_x = 0
-        for i in range(len(self.stick_x)):
-            if self.stick_x[i] > frame_of_input:
-                break
+            if f == frame_of_input:
+                frame.dpad_up = self.is_wheelie[i]
             frame.stick_x = self.stick_x_values[i]
-        
-        frame.stick_y = 0
-        for i in range(len(self.stick_y)):
-            if self.stick_y[i] > frame_of_input:
-                break
-            frame.stick_y = self.stick_y_values[i]
+            
 
     def mutate(self):
         # Always do at least one mutation
@@ -69,80 +55,54 @@ class Slide:
         # r is a random value ranging from 0-1
         # I am doing this because I have trained myself to be averse to needless rng calls. -_-
         # It doesn't really make the function much more complicated anyways...
-        n = 1
-        bits = getrandbits(32)
-        while bits & 0b11 != 0b00:
-            n += 1
-            bits >>= 2
         
-        index_scalar = 12*r - int(12*r)
+        index_to_change = int(len(self.keyframes)*(4*r - int(4*r)))
         
-        if r < 1/6:
-            i = int(len(self.wheelie) * index_scalar)
-            new = self.wheelie[i]
-            if r < 1/12:
-                new -= n
-                if (i > 0 and self.wheelie[i-1] > new - 20) or new < 0:
-                    return False
+        if r < 0.5: # Modify one of the keyframes
+            n = 1
+            bits = getrandbits(32)
+            while bits & 0b11 != 0b00:
+                n += 1
+                bits >>= 2
+            f = self.keyframes[index_to_change]
+            if r < 0.25:
+                for i in range(1, index_to_change+1):
+                    f_i = self.keyframes[index_to_change-i]
+                    if f_i + 20 < f - n:
+                        break
+                    if f_i >= f - n or (self.is_wheelie[index_to_change-i] and (f_i + 13 >= f - n or (self.is_wheelie[index_to_change] and f_i + 19 >= f - n))):
+                        return False
+                self.keyframes[index_to_change] = f - n
+                return True
             else:
-                new += n
-                if (i < len(self.wheelie) - 1 and self.wheelie[i+1] < new + 20) or new > 239:
-                    return False
-            self.wheelie[i] = new
-            return True
-        elif r < 2/6:
-            i = int(len(self.accel) * index_scalar)
-            new = self.accel[i]
-            if r < 3/12:
-                new -= n
-                if (i > 0 and self.accel[i-1] >= new) or new < 0:
-                    return False
-            else:
-                new += n
-                if (i < len(self.accel) - 1 and self.accel[i+1] <= new) or new > 239:
-                    return False
-            self.accel[i] = new
-            return True
-        elif r < 3/6:
-            i = int(len(self.stick_x) * index_scalar)
-            new = self.stick_x[i]
-            if r < 5/12:
-                new -= n
-                if (i > 0 and self.stick_x[i-1] >= new) or new < 0:
-                    return False
-            else:
-                new += n
-                if (i < len(self.stick_x) - 1 and self.stick_x[i+1] <= new) or new > 239:
-                    return False
-            self.stick_x[i] = new
-            return True
-        elif r < 4/6:
-            i = int(len(self.stick_y) * index_scalar)
-            new = self.stick_y[i]
-            if r < 7/12:
-                new -= n
-                if (i > 0 and self.stick_y[i-1] >= new) or new < 0:
-                    return False
-            else:
-                new += n
-                if (i < len(self.stick_y) - 1 and self.stick_y[i+1] <= new) or new > 239:
-                    return False
-            self.stick_y[i] = new
-            return True
-        elif r < 5/6:
-            i = int(len(self.stick_x_values) * index_scalar)
-            # Not nearly as worried about rejecting invalid values.
-            # Extreme stick values are more likely to be useful anyways.
-            # This also means that stick values will be modified slightly more often,
-            # Which doesn't sound bad to me. They do have more potential values, after all.
-            self.stick_x_values[i] = max(-7, min(7, self.stick_x_values[i] + (-n if r < 9/12 else n)))
-            return True
+                for i in range(1, len(self.keyframes) - index_to_change):
+                    f_i = self.keyframes[index_to_change+i]
+                    if f_i - 20 > f + n:
+                        break
+                    if f_i <= f + n or (self.is_wheelie[index_to_change+i] and (f_i - 13 <= f + n or (self.is_wheelie[index_to_change] and f_i - 19 <= f + n))):
+                        return False
+                self.keyframes[index_to_change] = f + n
+                return True
         else:
-            i = int(len(self.stick_y_values) * index_scalar)
-            # Same as above.
-            self.stick_y_values[i] = max(-7, min(7, self.stick_y_values[i] + (-n if r < 11/12 else n)))
+            options = [-7, 0, 7]
+            options.remove(self.stick_x_values[index_to_change])
+            # This does allow for multiple keyframes to have the same stick value in a row.
+            # It's important that, if the second consecutive keyframe is a wheelie, it *can* have the same value.
+            # But also, enforcing that invariant here would mean that mutations could cascade all the way to the end, which is not good.
+            self.stick_x_values[index_to_change] = options[0 if r < 0.75 else 1]
+            # Instead, we enforce the invariant by deleting keyframes with duplicate inputs. This should be fine.
+            if self.stick_x_values[index_to_change] == self.stick_x_values[index_to_change+1] and not self.is_wheelie[index_to_change+1]:
+                # Delete the one after the one we just changed
+                del self.keyframes[index_to_change+1]
+                del self.is_wheelie[index_to_change+1]
+                del self.stick_x_values[index_to_change+1]
+            if self.stick_x_values[index_to_change] == self.stick_x_values[index_to_change-1] and not self.is_wheelie[index_to_change]:
+                # Delete the one we just changed
+                del self.keyframes[index_to_change]
+                del self.is_wheelie[index_to_change]
+                del self.stick_x_values[index_to_change]
             return True
-            
+
 
 
 
