@@ -45,27 +45,24 @@ class Slide:
     def single_mutation(self):
         r = random()
         if r < 0.5:
-            return self.modify(2*r)
+            return self.modify()
         elif r < 5/6:
-            return self.add(3*(r-0.5))
+            return self.add()
         else:
-            return self.remove(6*(1-r))
+            return self.remove()
     
-    def modify(self, r):
-        # r is a random value ranging from 0-1
-        # I am doing this because I have trained myself to be averse to needless rng calls. -_-
-        # It doesn't really make the function much more complicated anyways...
+    def modify(self):
         
-        index_to_change = int(len(self.keyframes)*(4*r - int(4*r)))
+        index_to_change = randint(0, len(self.keyframes)-1)
         
-        if r < 0.5: # Modify one of the keyframes
+        if random() < 0.5: # Modify one of the keyframes
             n = 1
             bits = getrandbits(32)
             while bits & 0b11 != 0b00:
                 n += 1
                 bits >>= 2
             f = self.keyframes[index_to_change]
-            if r < 0.25:
+            if random() < 0.5:
                 for i in range(1, index_to_change+1):
                     f_i = self.keyframes[index_to_change-i]
                     if f_i + 20 < f - n:
@@ -83,13 +80,13 @@ class Slide:
                         return False
                 self.keyframes[index_to_change] = f + n
                 return True
-        else:
+        else:  # Modify one of the stick values
             options = [-7, 0, 7]
             options.remove(self.stick_x_values[index_to_change])
             # This does allow for multiple keyframes to have the same stick value in a row.
             # It's important that, if the second consecutive keyframe is a wheelie, it *can* have the same value.
             # But also, enforcing that invariant here would mean that mutations could cascade all the way to the end, which is not good.
-            self.stick_x_values[index_to_change] = options[0 if r < 0.75 else 1]
+            self.stick_x_values[index_to_change] = options[0 if random() < 0.5 else 1]
             # Instead, we enforce the invariant by deleting keyframes with duplicate inputs. This should be fine.
             if self.stick_x_values[index_to_change] == self.stick_x_values[index_to_change+1] and not self.is_wheelie[index_to_change+1]:
                 # Delete the one after the one we just changed
