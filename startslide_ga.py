@@ -102,7 +102,6 @@ class Slide:
 
 
 
-
 def update_frame(frame, frame_of_input):
     frames_remaining = 239 - frame_of_input
     
