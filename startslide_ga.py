@@ -1,13 +1,13 @@
 from dolphin import event, utils, savestate
-from Modules import TTK_Lib
+from Modules import ttk_lib
 from Modules import mkw_classes as classes
 from Modules import mkw_core as core
 from Modules import mkw_translations as translate
 from Modules.framesequence import FrameSequence, Frame
 import os
 from time import time
-from copy import copy
-from random import getrandbits, randint, random
+from copy import copy, deepcopy
+from random import getrandbits, randint, random, randrange
 from pycore_startslides.my_utils.start_boost import *
 
 class Slide:
@@ -100,12 +100,51 @@ class Slide:
                 del self.stick_x_values[index_to_change]
             return True
 
+    def add(self):
+        is_wheelie = random() < 0.1
+        insert_index = randint(0, len(self.keyframes))
+
+        f_low = 0 if insert_index == 0 else self.keyframes[insert_index-1] + 1
+        f_high = 239 if insert_index == len(self.keyframes) else self.keyframes[insert_index] - 1
+
+        if f_high < f_low:
+            return False
+
+        new_f = randint(f_low, f_high)
+        for i in range(len(self.keyframes)):
+            if i < insert_index:
+                if self.is_wheelie[i] and (self.keyframes[i] + 13 >= new_f or (is_wheelie and self.keyframes[i] + 19 >= new_f)):
+                    return False
+            elif is_wheelie and self.is_wheelie[i] and self.keyframes[i] - 19 <= new_f:
+                return False
+            
+        self.keyframes.insert(insert_index, new_f)
+        self.is_wheelie.insert(insert_index, is_wheelie)
+        options = [-7, 0, 7]
+        self.stick_x_values.insert(insert_index, options[randint(0, 2)])
+
+        return True
+    
+    def remove(self):
+        i = randint(0, len(self.keyframes)-1)
+
+        # I don't think there's any reason to make it more complicated than this?
+        # Invariants all don't require checking again on a deleted value, since they
+        # only matter if things are "too close". Nothing can possibly get closer, so we good
+        del self.keyframes[i]
+        del self.is_wheelie[i]
+        del self.stick_x_values[i]
+
+        return True
+
+            
 
 
 def update_frame(frame, frame_of_input):
+    global slide
     frames_remaining = 239 - frame_of_input
     
-    
+    slide.apply(frame, frame_of_input)
     (a_set, a) = a_forced(frames_remaining)
     if a_set:
         frame.accel = a
@@ -114,36 +153,40 @@ def update_frame(frame, frame_of_input):
 
 @event.on_frameadvance
 def onFrameAdvance():
-    global start_state, best_completion, current_frame, frame_sequence, start_time
-    stage = classes.RaceInfo.stage()
+    global start_state, best_completion, current_frame, frame_sequence, start_time, slide, best_slide
+    stage = classes.RaceManager.state().value
     
-    if stage == 0:
+    if stage == classes.RaceState.INTRO_CAMERA.value:
         start_time = time()
         savestate.load_from_bytes(start_state)
 
-    if stage == 1:
+    if stage == classes.RaceState.COUNTDOWN.value:
         frame = core.get_frame_of_input()
 
         update_frame(current_frame, frame)
-        TTK_Lib.writePlayerInputs(current_frame)
+        ttk_lib.write_player_inputs(current_frame)
         frame_sequence.frames.append(copy(current_frame))
     
-    if stage == 2 and start_state != None:
-        race_completion = classes.RaceInfoPlayer.race_completion()
+    if stage == classes.RaceState.RACE.value and start_state != None:
+        race_completion = classes.RaceManagerPlayer.race_completion()
 
         if race_completion > best_completion and len(frame_sequence.frames) == 240:
             print(
                 f"New best completion by   {race_completion - best_completion}"
             )
             best_completion = race_completion
-            frame_sequence.writeToFile(
+            best_slide = slide
+            frame_sequence.write_to_file(
                 os.path.join(
                     utils.get_script_dir(),
                     "MKW_Inputs",
                     "Startslides",
-                    "best_random_inputs.csv",
+                    "best_ga_inputs.csv",
                 )
             )
+            
+        slide = deepcopy(best_slide)
+        slide.mutate()
 
         frame_sequence = FrameSequence()
         t = time()
@@ -155,7 +198,7 @@ def onFrameAdvance():
 
 
 def main() -> None:
-    global start_state, best_completion, current_frame, frame_sequence, start_time
+    global start_state, best_completion, current_frame, frame_sequence, start_time, slide, best_slide
     
     with open(os.path.join(
                     utils.get_script_dir(),
@@ -168,6 +211,14 @@ def main() -> None:
     best_completion = float("-inf")
     current_frame = Frame(["", "", "", "", "", ""])
     frame_sequence = FrameSequence()
+
+    slide = Slide()
+    for _ in range(50):
+        result = False
+        while not result:
+            result = slide.add()
+    best_slide = slide
+    print(len(best_slide.keyframes))
 
     current_frame.accel = False
     current_frame.brake = False
@@ -186,4 +237,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(e)
+        global slide
+        print(slide.keyframes)

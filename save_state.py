@@ -7,7 +7,7 @@ import os
 def onFrameAdvance():
     # intro_timer == 171 is the frame before the start of input
     # intro_timer == 172 for the whole race
-    if classes.RaceInfo.intro_timer() == 171:
+    if classes.RaceManager.intro_timer() == 171:
         state = savestate.save_to_bytes()
         with open(os.path.join(
                     utils.get_script_dir(),
